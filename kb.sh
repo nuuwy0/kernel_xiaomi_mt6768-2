@@ -164,19 +164,22 @@ function updateclang() {
 # Enviromental variable
 STARTTIME="$(TZ='Asia/Jakarta' date +%H%M)"
 export TZ="Asia/Jakarta"
-DEVICE_MODEL="Redmi Note 9"
-DEVICE_CODENAME="merlin"
+MODEL="Redmi Note 9"
+DEVICE="merlin"
 export DEFCONFIG="merlin_defconfig"
 export ARCH="arm64"
 export KBUILD_BUILD_USER="nuuwy0"
 export KBUILD_BUILD_HOST="0ywuun"
 #export KERNEL_NAME="$(cat "arch/arm64/configs/$DEVICE_DEFCONFIG" | grep "CONFIG_LOCALVERSION=" | sed 's/CONFIG_LOCALVERSION="-*//g' | sed 's/"*//g' )"
 export KERNEL_NAME="Atomic!"
-export SUBLEVEL="v4.14.$(cat "${MainPath}/Makefile" | grep "SUBLEVEL =" | sed 's/SUBLEVEL = *//g')"
+export VERSION="v1"
+export KERVER=$(make kernelversion)
+#export SUBLEVEL="v4.14.$(cat "${MainPath}/Makefile" | grep "SUBLEVEL =" | sed 's/SUBLEVEL = *//g')"
 IMAGE="${MainPath}/out/arch/arm64/boot/Image.gz-dtb"
 CORES="$(nproc --all)"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-DATE="$(date +%H.%M-%d.%m)"
+DATE=$(date +"%d-%m-%Y")
+ZDATE="$(date "+%d%m%Y")"
 
 # Function of telegram
 if [ ! -f "${MainPath}/Telegram/telegram" ]; then
@@ -209,88 +212,39 @@ tgannounce() {
 
 # Function for uploaded kernel file
 function push() {
-  cd ${AnyKernelPath}
-  ZIP=$(echo *.zip)
-  tgf "$ZIP" "✅ Compile took $((DIFF / 60)) minute(s) and $((DIFF % 60)) second(s)."
-  sleep 3
-  if [ "${SEND_ANNOUNCEMENT}" = "yes" ];then
-    sendannouncement
-  else
-    if [ "$CLEANUP" = "yes" ];then
-      cleanup
-    fi
-  fi
-}
 
-function sendannouncement(){
-  if [ "$TELEGRAM_CHANNEL" = "" ];then
-    echo "You have forgot to put the Telegram Channel ID, so can't send the announcement! Aborting..." 
-    sleep 0.5
-    exit 1
-  fi
-  if [ "$KERNELSU" = "yes" ];then
-    ksuannounce
-  else
-    announce
-  fi
-}
+  cfile="kernel-info-$VERSION-$ZDATE.md"
+	log="$(git log --oneline -n 40)"
+	flog="$(echo "$log" | sed -E 's/^([a-zA-Z0-9]+) (.*)/* \2/')"
 
-function announce() {
-  cd ${AnyKernelPath}
-  ZIP=$(echo *.zip)
-  tgannounce "$ZIP" "
-📢 | <i>New kernel build!</i>
+	touch $cfile
+	{
+		echo -e "## Atomic Kernel"
+		echo -e "* Kernel name: $KERNEL_NAME-$VERISON"
+		echo -e "* Device name: ${MODEL} [$DEVICE]"
+		echo -e "* Linux version: $KERVER"
+		echo -e "* Build user: $KBUILD_BUILD_USER@$KBUILD_BUILD_HOST"
+		echo -e "* Compiler name: $KBUILD_COMPILER_STRING"
+		echo -e ""
+		echo -e "## Changelogs build $ZDATE"
+		echo -e "$flog"
+	} >>"$cfile"
 
-<b>• DATE :</b> <code>$(TZ=Asia/Jakarta date +"%A, %d %b %Y, %H:%M:%S")</code>
-<b>• DEVICE :</b> <code>${DEVICE_MODEL} ($DEVICE_CODENAME)</code>
-<b>• KERNEL NAME :</b> <code>${KERNEL_NAME}</code>
-<b>• KERNEL LINUX VERSION :</b> <code>${SUBLEVEL}</code>
-<b>• KERNEL VARIANT :</b> <code>${KERNEL_VARIANT}</code>
-<b>• KERNELSU :</b> <code>${KERNELSU}</code>
-
-<i>Compilation took $((DIFF / 60)) minute(s) and $((DIFF % 60)) second(s)</i>
-"
-  if [ "$CLEANUP" = "yes" ];then
-    cleanup
-  fi
-}
-
-function ksuannounce() {
-  cd ${AnyKernelPath}
-  ZIP=$(echo *.zip)
-  tgannounce "$ZIP" "
-📢 | <i>New kernel build!</i>
-
-<b>• DATE :</b> <code>$(TZ=Asia/Jakarta date +"%A, %d %b %Y, %H:%M:%S")</code>
-<b>• DEVICE :</b> <code>${DEVICE_MODEL} ($DEVICE_CODENAME)</code>
-<b>• KERNEL NAME :</b> <code>${KERNEL_NAME}</code>
-<b>• KERNEL LINUX VERSION :</b> <code>${SUBLEVEL}</code>
-<b>• KERNEL VARIANT :</b> <code>${KERNEL_VARIANT}</code>
-<b>• KERNELSU :</b> <code>${KERNELSU}</code>
-<b>• KERNELSU VERSION :</b> <code>${KERNELSU_VERSION}</code>
-
-<i>Compilation took $((DIFF / 60)) minute(s) and $((DIFF % 60)) second(s)</i>
-"
-  if [ "$CLEANUP" = "yes" ];then
-    cleanup
-  fi
-}
-
-# Send info build to telegram channel
-function ksusendinfo(){
+  ZIP=$(echo $AnyKernelPath/*.zip)
   tgm "
-<b> Atomic Kernel Build Triggered</b>
-<b>-----------------------------------------</b>
-<b> Architecture</b>   : <code>$ARCH</code>
-<b> Build Date</b>     : <code>$DATE</code>
-<b> Device Name</b>    : <code>${DEVICE_MODEL} [${DEVICE_CODENAME}]</code>
-<b> Kernel Name</b>    : <code>${KERNEL_NAME}</code>
-<b> Linux Version</b>  : <code>$(make kernelversion)</code>
-<b> Ksu Version</b>    : <code>${KERNELSU_VERSION}</code>
-<b> Compiler Name</b>  : <code>${KBUILD_COMPILER_STRING}</code>
-<b>------------------------------------------</b>
-"
+<b>✅ Atomic! Kernel</b>
+<b>[*] Build Date </b> => <code>$DATE</code>
+  "
+  tgf "$ZIP" "<b>[*] Compiler</b> => <code>${KBUILD_COMPILER_STRING}</code>"
+  tgf "$cfile" "<b>[*] Kernel Changelog</b>"
+
+  sleep 3
+    if [ "$CLEANUP" = "yes" ];then
+       cleanup
+    fi
 }
+
+
 
 function sendinfo(){
   tgm "
@@ -298,9 +252,9 @@ function sendinfo(){
 <b>-----------------------------------------</b>
 <b> Architecture</b>   : <code>$ARCH</code>
 <b> Build Date</b>     : <code>$DATE</code>
-<b> Device Name</b>    : <code>${DEVICE_MODEL} [${DEVICE_CODENAME}]</code>
+<b> Device Name</b>    : <code>${MODEL} [${DEVICE}]</code>
 <b> Kernel Name</b>    : <code>${KERNEL_NAME}</code>
-<b> Linux Version</b>  : <code>$(make kernelversion)</code>
+<b> Linux Version</b>  : <code>$KERVER</code>
 <b> Compiler Name</b>  : <code>${KBUILD_COMPILER_STRING}</code>
 <b>------------------------------------------</b>
 " 
@@ -318,7 +272,7 @@ fi
 
 make O=out ARCH=$ARCH $DEFCONFIG
 make -j"$CORES" ARCH=$ARCH O=out \
-    CC=clang \
+    REAL_CC="ccache clang" \
     LD=ld.lld \
     LLVM=1 \
     LLVM_IAS=1 \
@@ -348,12 +302,12 @@ make -j"$CORES" ARCH=$ARCH O=out \
 # Zipping function
 function zipping() {
     cd ${AnyKernelPath} || exit 1
-    sed -i "s/kernel.string=.*/kernel.string=${KERNEL_NAME}-${SUBLEVEL}-${KERNEL_VARIANT} by ${KBUILD_BUILD_USER} for ${DEVICE_MODEL} (${DEVICE_CODENAME})/g" anykernel.sh
-    zip -r9 "[${KERNEL_VARIANT}]"-${KERNEL_NAME}-${SUBLEVEL}-${DEVICE_CODENAME}.zip * -x .git README.md *placeholder
+    sed -i "s/kernel.string=.*/kernel.string=$KERNEL_NAME-$VERSION-$DEVICE_CODENAME-$ZDATE by ${KBUILD_BUILD_USER} for ${DEVICE_MODEL} (${DEVICE_CODENAME})/g" anykernel.sh
+    zip -r9 $KERNEL_NAME-$VERSION-$DEVICE-$ZDATE.zip * -x .git README.md *placeholder
     cd ..
     mkdir -p builds
     zipname="$(basename $(echo ${AnyKernelPath}/*.zip | sed "s/.zip//g"))"
-    cp ${AnyKernelPath}/*.zip ./builds/${zipname}-$DATE.zip
+    cp ${AnyKernelPath}/*.zip ./builds/
 }
 
 # Cleanup function
@@ -361,31 +315,12 @@ function cleanup() {
     cd ${MainPath}
     sudo rm -rf ${AnyKernelPath}
     sudo rm -rf out/
-}
-
-# KernelSU function
-function kernelsu() {
-    if [ "$KERNELSU" = "yes" ];then
-      KERNEL_VARIANT="${KERNEL_VARIANT}-KSU"
-      KERNELSU_VERSION="$((10000 + $(cd KernelSU && git rev-list --count HEAD) + 200))"
-      if [ ! -f "${MainPath}/KernelSU/README.md" ]; then
-        cd ${MainPath}
-        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
-        echo "CONFIG_KPROBES=y" >> arch/${ARCH}/configs/$DEFCONFIG
-        echo "CONFIG_HAVE_KPROBES=y" >> arch/${ARCH}/configs/$DEFCONFIG
-        echo "CONFIG_KPROBE_EVENTS=y" >> arch/${ARCH}/configs/$DEFCONFIG
-        echo "CONFIG_OVERLAY_FS=y" >> arch/${ARCH}/configs/$DEFCONFIG
-      fi
-      sudo rm -rf KernelSU && git clone https://github.com/tiann/KernelSU
-      ksusendinfo
-    else
-      sendinfo
-    fi
+    sudo rm -rf error.log
 }
 
 getclang
 updateclang
-kernelsu
+sendinfo
 compile
 zipping
 END=$(date +"%s")
